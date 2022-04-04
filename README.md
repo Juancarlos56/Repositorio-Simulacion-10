@@ -1,2 +1,2 @@
 # Repositorio para la Materia de Simulacion 
-## Nombre: Juan Caarlos Barrera Barrera
+## Nombre: Juan Carlos Barrera Barrera
