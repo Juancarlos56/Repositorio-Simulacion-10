@@ -3,9 +3,18 @@ from tkinter import *
 import collections
 import random
 import simpy
-from PIL import ImageTk, Image
-import matplotlib.pyplot as plt
 
+from PIL import Image, ImageTk
+
+from reportlab.platypus import Image as ImageRepor
+import matplotlib.pyplot as plt
+# Para generar el reporte en PDF
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.units import inch
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER
 
 class Cinema:
   
@@ -27,6 +36,26 @@ class Cinema:
   NUM_BOLETO = 100
   TIEMPO_SIMULACION = 60*3
   boletos={}
+
+
+  ##Variables de reporte
+  # Para el reporte
+  # Se crea la página
+  doc = SimpleDocTemplate("theater_report.pdf",
+                          pagesize = A4,
+                          rightMargin = 72,
+                          leftMargin = 72,
+                          topMargin = 72,
+                          bottomMargin = 72)
+
+  # Contenedor de los elementos
+  content = []
+
+  styles = getSampleStyleSheet()
+  styles.add(ParagraphStyle(name = 'Justify', alignment = TA_JUSTIFY))
+  styles.add(ParagraphStyle(name = 'Center', alignment = TA_CENTER))
+
+
 
   ##Lectura de imagenes
   imgConjuro = ImageTk.PhotoImage(Image.open("conjuro3.jpg").resize((160,240)))
@@ -203,6 +232,41 @@ class Cinema:
     plt.legend(loc='best')
     plt.show()
 
+  def init_report(self):
+    self.content.append(Paragraph('Reporte del Teatro Carlos Crespi', self.styles['Center']))
+    self.content.append(Spacer(1, 12))
+
+    self.content.append(Paragraph('Logs de la simulación', self.styles['Normal']))
+    self.content.append(Spacer(1, 12))
+
+  def generate_report(self, theater):
+    self.content.append(Spacer(1, 12))
+    self.content.append(Paragraph('Resumen de las ventas', self.styles['Normal']))
+    self.content.append(Spacer(1, 12))
+
+    # Se agrega el resumen de las ventas
+    for film in theater.peliculas:
+        if theater.sold_out[film]:
+            self.content.append(Paragraph(f'Película: {film}', self.styles['Normal']))
+            self.content.append(Paragraph(f'Se agotó a los {theater.tiempo_agotado[film]} minutos de abrir el teatro.', self.styles['Normal']))
+            self.content.append(Paragraph(f'Hubieron {theater.num_renegados[film]} personas que \
+            tuvieron que salir de la fila debido a que se agotaron las entradas.', self.styles['Normal']))
+            self.content.append(Spacer(1, 12))
+
+    self.content.append(Spacer(1, 12))
+
+    # Se agrega la gráfica generada
+    self.content.append(Paragraph('C. Gráfica de los tiempos de venta', self.styles['Normal']))
+    self.content.append(Spacer(1, 12))
+
+    img_name = 'ResultadoBoletos.png'
+    img = ImageRepor(img_name, 4*inch, 3*inch)
+    self.content.append(img)
+
+    # Se genera el documento
+    self.doc.build(self.content)
+    print('Se ha generado el reporte')
+
 
   def __init__(self):    
     print('Teatro Carlos Crespi - UPS')    
@@ -227,18 +291,18 @@ class Cinema:
 
     #Creando teatro con varibles de almacenamiento
     teatro = Teatro(contador, peliculas, probabilidad, num_boletos, sold_out, tiempo_agotado, num_renegados)
-    
+    self.init_report()
+
     env.process(self.llegadaClientes(env, teatro))
     env.process(self.proceso_reloj(env))
     env.run(until=self.TIEMPO_SIMULACION)  
     self.ventana.mainloop()
-
-    for pelicula in peliculas:
-      if teatro.sold_out[pelicula]:
-        print('Pelicula: %s se agoto en el tiempo %.1f despues de salir a la venta' %(pelicula, teatro.tiempo_agotado[pelicula]))
-        print('Numero de personas que salieron de la fila/renegados %s' %teatro.num_renegados[pelicula])  
+    
     print(self.boletos)
     self.graficas()
+    self.generate_report(teatro)
+
+
 
     
 if __name__ == '__main__':
